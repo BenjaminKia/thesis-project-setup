@@ -3,6 +3,14 @@
 # Master configuration for thesis experiments
 # All hyperparameters and paths in one place
 # ============================================================
+# 
+# SCOPE DECISIONS (March 5, 2026):
+#   RQ1: Integrated gradients (primary) + feature masking (validation)
+#   RQ2: Frozen/partial/full comparison (primary) + layer probing (secondary)
+#   RQ4: RoBERTa (required), ensembles (if time permits)
+#   Split: Temporal train/test — no random shuffling
+#   Priority: Replication → RQ3 → RQ2 → RQ1 → RQ4
+#
 
 project:
   name: "llm-sentiment-trading"
@@ -26,6 +34,10 @@ data:
   start_date: "2010-01-01"       # adjust based on news coverage
   end_date: "2023-12-31"         # adjust based on data availability
   market_index: "sp500"          # for market-adjusted returns
+
+  # Temporal train/test split — NO random shuffling (time-series leakage)
+  train_end: "2019-12-31"        # train: 2010–2019
+  test_start: "2020-01-01"       # test:  2020–2023
 
   # Label construction (Kirtac & Germano, 2024 baseline)
   label_horizon_days: 3          # RQ3 will vary: [1, 3, 5, 7]
@@ -65,7 +77,7 @@ models:
     warmup_ratio: 0.1
     weight_decay: 0.01
 
-  # RQ4: New architecture
+  # RQ4: New architecture (required)
   roberta:
     name: "roberta-base"
     max_length: 512
@@ -91,19 +103,58 @@ portfolio:
   rebalance_frequency: "daily"
   transaction_costs: 0.001      # 10 bps per trade
 
-# === RQ3: Sensitivity Grid ===
-sensitivity:
-  label_horizons: [1, 3, 5, 7]
-  portfolio_cutoffs: [0.10, 0.15, 0.20, 0.25, 0.30]
+# === RQ1: Interpretability ===
+interpretability:
+  # Primary method
+  primary: "integrated_gradients"
+  ig_steps: 50                   # number of interpolation steps
+  ig_internal_batch: 16          # batch for IG computation
+
+  # Validation method
+  validation: "feature_masking"
+  mask_strategies:
+    - "named_entities"           # mask company names, people, etc.
+    - "financial_terms"          # mask financial vocabulary
+    - "sentiment_words"          # mask sentiment-bearing words
+    - "numbers"                  # mask numerical values
+
+  # Attention rollout — only if time permits
+  # attention_rollout: true
 
 # === RQ2: Transfer Learning ===
 transfer_learning:
+  # Primary: freezing comparison
   freeze_strategies:
     - "full"                     # all layers trainable
     - "partial_top4"             # only top 4 layers trainable
     - "partial_top2"             # only top 2 layers trainable
     - "frozen"                   # only classification head trainable
+
+  # Secondary: layer-wise probing
+  # Measure probe accuracy delta between pre-trained and fine-tuned
   probe_layers: "all"            # extract representations from every layer
+  probe_type: "linear"           # linear probe on frozen representations
+
+# === RQ3: Sensitivity Grid ===
+sensitivity:
+  label_horizons: [1, 3, 5, 7]
+  portfolio_cutoffs: [0.10, 0.15, 0.20, 0.25, 0.30]
+
+# === RQ4: Architecture & Ensembles ===
+architecture:
+  # Required
+  roberta_comparison: true
+
+  # If time permits
+  ensemble:
+    enabled: false               # flip to true when ready
+    methods:
+      - "majority_vote"
+      - "weighted_average"
+    models_in_ensemble:
+      - "bert"
+      - "finbert"
+      - "roberta"
 
 # === Evaluation ===
 evaluation:
