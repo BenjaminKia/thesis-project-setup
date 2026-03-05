@@ -1,0 +1,116 @@
+# config.yaml
+# ============================================================
+# Master configuration for thesis experiments
+# All hyperparameters and paths in one place
+# ============================================================
+
+project:
+  name: "llm-sentiment-trading"
+  author: "Benjamin Kia"
+  seed: 42
+
+# === Paths ===
+paths:
+  raw_news: "data/raw/news/"
+  raw_returns: "data/raw/returns/"
+  processed: "data/processed/"
+  labels: "data/labels/"
+  checkpoints: "models/checkpoints/"
+  results: "results/"
+  figures: "thesis/figures/"
+  tables: "thesis/tables/"
+
+# === Data ===
+data:
+  # CRSP returns
+  start_date: "2010-01-01"       # adjust based on news coverage
+  end_date: "2023-12-31"         # adjust based on data availability
+  market_index: "sp500"          # for market-adjusted returns
+
+  # Label construction (Kirtac & Germano, 2024 baseline)
+  label_horizon_days: 3          # RQ3 will vary: [1, 3, 5, 7]
+  label_type: "market_adjusted"  # abnormal return vs market
+
+  # News filtering
+  min_article_length: 50         # tokens
+  max_articles_per_day: 5        # per ticker, to avoid flooding
+
+# === Models ===
+models:
+  # Baseline models from Kirtac & Germano (2024)
+  bert:
+    name: "bert-base-uncased"
+    max_length: 512
+    batch_size: 16               # RTX 4060 8GB: 16 works for BERT-base
+    learning_rate: 2.0e-5
+    epochs: 4
+    warmup_ratio: 0.1
+    weight_decay: 0.01
+
+  finbert:
+    name: "ProsusAI/finbert"
+    max_length: 512
+    batch_size: 16
+    learning_rate: 2.0e-5
+    epochs: 4
+    warmup_ratio: 0.1
+    weight_decay: 0.01
+
+  opt:
+    name: "facebook/opt-350m"    # 350M fits on 4060; 1.3B needs Colab
+    max_length: 512
+    batch_size: 8                # smaller batch for larger model
+    learning_rate: 1.0e-5
+    epochs: 3
+    warmup_ratio: 0.1
+    weight_decay: 0.01
+
+  # RQ4: New architecture
+  roberta:
+    name: "roberta-base"
+    max_length: 512
+    batch_size: 16
+    learning_rate: 2.0e-5
+    epochs: 4
+    warmup_ratio: 0.1
+    weight_decay: 0.01
+
+# === Training ===
+training:
+  fp16: true                     # mixed precision — essential for 4060
+  gradient_accumulation_steps: 2 # effective batch = batch_size * 2
+  eval_steps: 500
+  save_steps: 1000
+  logging_steps: 100
+  early_stopping_patience: 3
+
+# === Portfolio / Backtest ===
+portfolio:
+  # Kirtac & Germano (2024) baseline
+  long_short_percentile: 0.20   # top/bottom 20% → RQ3 varies: [0.10, 0.20, 0.30]
+  rebalance_frequency: "daily"
+  transaction_costs: 0.001      # 10 bps per trade
+
+# === RQ3: Sensitivity Grid ===
+sensitivity:
+  label_horizons: [1, 3, 5, 7]
+  portfolio_cutoffs: [0.10, 0.15, 0.20, 0.25, 0.30]
+
+# === RQ2: Transfer Learning ===
+transfer_learning:
+  freeze_strategies:
+    - "full"                     # all layers trainable
+    - "partial_top4"             # only top 4 layers trainable
+    - "partial_top2"             # only top 2 layers trainable
+    - "frozen"                   # only classification head trainable
+  probe_layers: "all"            # extract representations from every layer
+
+# === Evaluation ===
+evaluation:
+  metrics:
+    - accuracy
+    - f1_macro
+    - sharpe_ratio
+    - max_drawdown
+    - annualized_return
+    - calmar_ratio

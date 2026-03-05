@@ -1,0 +1,50 @@
+# Data (too large for git)
+data/raw/
+data/processed/
+data/labels/
+*.parquet
+*.csv
+*.h5
+
+# Model checkpoints
+models/checkpoints/
+*.pt
+*.bin
+*.safetensors
+
+# Jupyter
+.ipynb_checkpoints/
+*.ipynb_metadata/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+.eggs/
+dist/
+build/
+
+# Environment
+.env
+*.env
+.pgpass
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Wandb
+wandb/
+
+# Logs
+logs/*.log
+
+# Thesis builds (keep source, ignore builds)
+thesis/*.pdf

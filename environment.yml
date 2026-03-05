@@ -1,0 +1,71 @@
+# environment.yml
+# Thesis: "When Do Language Models Learn to Trade?"
+# Optimized for RTX 4060 (8GB VRAM, CUDA 12.x)
+#
+# Install: conda env create -f environment.yml
+# Activate: conda activate thesis
+
+name: thesis
+channels:
+  - pytorch
+  - nvidia
+  - conda-forge
+  - defaults
+
+dependencies:
+  - python=3.11
+  - pip
+
+  # === PyTorch (CUDA 12.x for RTX 4060) ===
+  - pytorch>=2.2
+  - torchvision
+  - pytorch-cuda=12.1
+
+  # === Data handling ===
+  - pandas>=2.1
+  - numpy>=1.25
+  - pyarrow            # fast parquet I/O
+  - openpyxl           # Excel read/write
+
+  # === Scientific / stats ===
+  - scipy
+  - scikit-learn
+  - statsmodels
+
+  # === Visualization ===
+  - matplotlib
+  - seaborn
+
+  # === Notebooks ===
+  - jupyterlab
+  - ipywidgets
+  - tqdm
+
+  # === Utilities ===
+  - pyyaml
+  - python-dotenv
+
+  - pip:
+    # === HuggingFace ecosystem ===
+    - transformers>=4.38
+    - datasets>=2.18
+    - accelerate>=0.27
+    - tokenizers>=0.15
+    - evaluate
+    - peft>=0.9          # parameter-efficient fine-tuning (LoRA etc.)
+
+    # === Finance-specific ===
+    - wrds               # WRDS/CRSP data access
+    - yfinance           # backup price data
+    - empyrical          # portfolio analytics (Sharpe, drawdown, etc.)
+
+    # === Interpretability (RQ1) ===
+    - captum             # PyTorch model interpretability
+    - bertviz            # attention visualization
+
+    # === Experiment tracking ===
+    - wandb              # experiment logging (free tier is fine)
+
+    # === Code quality ===
+    - black
+    - ruff
