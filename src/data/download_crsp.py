@@ -99,13 +99,15 @@ def compute_abnormal_returns(
 
     # Compute forward cumulative returns per stock
     # cum_ret(t, t+h) = (1+r_{t+1}) * (1+r_{t+2}) * ... * (1+r_{t+h}) - 1
-    df_ret["ret_clean"] = df_ret["ret"].fillna(0)
+    # Do NOT fill NaN returns with 0 — missing return days mean the full
+    # h-day window is unavailable and should propagate as NaN, not be
+    # silently treated as zero-return days.
 
     cum_rets = []
     for _, group in df_ret.groupby("permno"):
         g = group.copy()
         g["fwd_cum_ret"] = (
-            (1 + g["ret_clean"])
+            (1 + g["ret"])
             .rolling(window=horizon, min_periods=horizon)
             .apply(lambda x: x.prod() - 1, raw=True)
             .shift(-horizon)
@@ -114,9 +116,10 @@ def compute_abnormal_returns(
     df_ret = pd.concat(cum_rets, ignore_index=True)
 
     # Compute forward cumulative market return
-    df_mkt["mkt_clean"] = df_mkt["market_ret"].fillna(0)
+    # Market index missing days are genuinely rare; keep same NaN-propagation
+    # logic for consistency.
     df_mkt["fwd_cum_mkt"] = (
-        (1 + df_mkt["mkt_clean"])
+        (1 + df_mkt["market_ret"])
         .rolling(window=horizon, min_periods=horizon)
         .apply(lambda x: x.prod() - 1, raw=True)
         .shift(-horizon)
@@ -126,10 +129,20 @@ def compute_abnormal_returns(
     df = df_ret.merge(df_mkt[["date", "fwd_cum_mkt"]], on="date", how="left")
     df["abnormal_ret"] = df["fwd_cum_ret"] - df["fwd_cum_mkt"]
 
-    # Create binary label
+    # Create binary label — drop rows where CAR could not be computed
+    # (insufficient return history or missing data within the window).
+    # Keeping NaNs and casting to int would silently label them as 0
+    # (underperform), which would corrupt the training data.
+    n_before = len(df)
+    df = df.dropna(subset=["abnormal_ret"])
+    n_dropped = n_before - len(df)
+    if n_dropped > 0:
+        print(f"  Dropped {n_dropped:,} rows with missing CAR "
+              f"(end-of-sample truncation or gaps in return history)")
+
     df["label"] = (df["abnormal_ret"] > 0).astype(int)
 
-    n_valid = df["label"].notna().sum()
+    n_valid = len(df)
     label_dist = df["label"].value_counts(normalize=True)
     print(f"  Valid labels: {n_valid:,}")
     print(f"  Label distribution: {label_dist.to_dict()}")
